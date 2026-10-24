@@ -1,0 +1,62 @@
+
+name: Build NativeArenaFighter APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Extract Android source
+        run: |
+          mkdir -p source
+          unzip -o NativeArenaFighter_Android_Source.zip -d source
+
+      - name: Locate Gradle project
+        id: project
+        run: |
+          FILE=$(find "$GITHUB_WORKSPACE/source" \
+            -type f \( -name settings.gradle \
+            -o -name settings.gradle.kts \) \
+            -print -quit)
+          if [ -z "$FILE" ]; then
+            echo "Tidak ditemukan settings.gradle."
+            echo "Periksa struktur arsip sumber."
+            exit 1
+          fi
+          echo "dir=$(dirname "$FILE")" >> "$GITHUB_OUTPUT"
+
+      - name: Build debug APK
+        working-directory: source
+        run: |
+          cd "${{ steps.project.outputs.dir }}"
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+            ./gradlew assembleDebug
+          else
+            gradle assembleDebug
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NativeArenaFighter-APK
+          path: source/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
