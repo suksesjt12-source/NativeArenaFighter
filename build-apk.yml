@@ -1,0 +1,47 @@
+name: Build NativeArenaFighter APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'NativeArenaFighter_Android_Source.zip'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Extract Android project
+        run: |
+          unzip -q NativeArenaFighter_Android_Source.zip -d source
+          echo "Extracted files:"
+          find source/NativeArenaFighter -maxdepth 4 -type f | head -200
+
+      - name: Build debug APK
+        working-directory: source/NativeArenaFighter
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NativeArenaFighter-debug-apk
+          path: source/NativeArenaFighter/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
